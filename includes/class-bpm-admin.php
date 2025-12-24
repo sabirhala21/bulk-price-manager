@@ -31,11 +31,20 @@ class BPM_Admin {
             true
         );
 
+        wp_enqueue_style(
+            'bpm-admin',
+            BPM_URL . 'assets/css/admin.css',
+            [],
+            '1.0'
+        );
+
+
         wp_localize_script('bpm-admin', 'BPM', [
             'ajax' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('bpm_nonce')
         ]);
     }
+    
 
     public function page() {
         ?>
@@ -54,12 +63,53 @@ class BPM_Admin {
             </select>
             <input type="number" step="0.01" id="price_value" placeholder="Value">
 
+            <p>
+                <label for="operation_label"><strong>Operation Label</strong></label><br>
+                <input type="text" id="operation_label" style="width:300px"
+                    placeholder="e.g. 10% Increase – Chairs – Sept 2025">
+            </p>
+
             <br><br>
             <button class="button button-secondary" id="bpm-preview">Trial Run</button>
             <button class="button button-primary" id="bpm-execute">Execute</button>
+            <button class="button" id="bpm-view-history">
+                View Operations History
+            </button>
 
             <div id="bpm-result"></div>
+            <!-- <div id="bpm-history"></div> -->
+            <div id="bpm-toast" style="
+                display:none;
+                position:fixed;
+                top:50%;
+                right:0;
+                background:#2ecc71;
+                color:#fff;
+                padding:12px 18px;
+                border-radius:4px;
+                z-index:9999;
+            "></div>
         </div>
+        <!-- <div id="bpm-spinner" style="display:none;">
+            <p><strong>Processing, please wait…</strong></p>
+        </div> -->
+        <div id="bpm-history-modal" class="bpm-modal" style="display:none;">
+            <div class="bpm-modal-content">
+                <span class="bpm-close">&times;</span>
+                <h2>Bulk Price Operations History</h2>
+                <div id="bpm-history-content">
+                    <p>Loading history…</p>
+                </div>
+            </div>
+        </div>
+        <!-- BPM Overlay -->
+        <div id="bpm-overlay" style="display:none;">
+            <div class="bpm-overlay-content">
+                <div class="bpm-spinner"></div>
+                <p id="bpm-overlay-text">Processing, please wait…</p>
+            </div>
+        </div>
+
         <?php
     }
 }

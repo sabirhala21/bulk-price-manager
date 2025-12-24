@@ -1,0 +1,65 @@
+.bpm-modal {
+    position: fixed;
+    z-index: 10000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.4);
+}
+
+.bpm-modal-content {
+    background: #fff;
+    margin: 5% auto;
+    padding: 20px;
+    width: 70%;
+    max-height: 70vh;
+    overflow-y: auto;
+    border-radius: 6px;
+}
+
+.bpm-close {
+    float: right;
+    font-size: 22px;
+    cursor: pointer;
+}
+
+/* Full screen overlay */
+#bpm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.45);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Center box */
+.bpm-overlay-content {
+    background: #fff;
+    padding: 30px 40px;
+    border-radius: 8px;
+    text-align: center;
+    min-width: 260px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+/* Spinner */
+.bpm-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #ddd;
+    border-top: 4px solid #2271b1; /* WP blue */
+    border-radius: 50%;
+    animation: bpm-spin 1s linear infinite;
+    margin: 0 auto 15px;
+}
+
+@keyframes bpm-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

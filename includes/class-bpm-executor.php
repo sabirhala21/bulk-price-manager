@@ -12,7 +12,7 @@ class BPM_Executor {
         $type = $data['type'];
         $value = floatval($data['value']);
         $operation_id = uniqid('bpm_', true);
-
+        $label = sanitize_text_field($data['operation_label']);
         $products = BPM_Query::get_products($ids);
 
         try {
@@ -32,6 +32,7 @@ class BPM_Executor {
                     "{$wpdb->prefix}bpm_price_history",
                     [
                         'operation_id' => $operation_id,
+                        'operation_label' => $label,
                         'product_id' => $product->get_id(),
                         'old_price' => $old,
                         'new_price' => $new
@@ -47,5 +48,6 @@ class BPM_Executor {
             $wpdb->query('ROLLBACK');
             throw $e;
         }
+        return $operation_id;
     }
 }
