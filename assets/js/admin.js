@@ -1,5 +1,25 @@
 jQuery(function ($) {
 
+   function bpmToggleActionButtons(enabled) {
+        $('#bpm-preview, #bpm-execute').prop('disabled', !enabled);
+    }
+    bpmToggleActionButtons(false);
+
+    $('#product_category, #product_tag').select2({
+        placeholder: 'Select options',
+        allowClear: true,
+        width: '100%'
+    });
+
+    $('#product_ids').on('input', function () {
+        const hasIds = $(this).val().trim().length > 0;
+
+        $('#product_category, #product_tag')
+            .prop('disabled', hasIds)
+            .val(null)
+            .trigger('change');
+    });
+
     function bpmResetForm() {
         // Reset inputs
         $('#product_ids').val('');
@@ -13,8 +33,17 @@ jQuery(function ($) {
         // Clear results / preview
         $('#bpm-result').html('');
 
+        // Clear category & tag (Select2-safe)
+        $('#product_category, #product_tag')
+            .val(null)
+            .trigger('change');
+
+        // Clear product table
+        $('#bpm-products-table').html('');
+
         // (Optional) Disable execute button temporarily
         $('#bpm-execute').prop('disabled', false);
+        bpmToggleActionButtons(false);
     }
 
     function bpmToast(message, type = 'success') {
@@ -37,17 +66,20 @@ jQuery(function ($) {
         $('#bpm-overlay').fadeOut(150);
     }
 
+    function bpmValidateSelection() {
+        const selected = getSelectedProducts();
 
-    function bpmValidateExecute() {
-        const ids = $('#product_ids').val().trim();
-        const value = $('#price_value').val().trim();
-        const label = $('#operation_label').val().trim();
-
-        if (!ids) {
-            bpmToast('Please enter at least one Product ID', 'error');
+        if (!selected.length) {
+            bpmToast('Please select at least one product or variation', 'error');
             return false;
         }
 
+        return true;
+    }
+
+    function bpmValidateExecuteFields() {
+        const value = $('#price_value').val().trim();
+        const label = $('#operation_label').val().trim();
         if (!value || isNaN(value)) {
             bpmToast('Please enter a valid price value', 'error');
             return false;
@@ -192,15 +224,133 @@ jQuery(function ($) {
         });
     });
 
+    function initBpmDataTable() {
 
+        if (!$.fn.DataTable) return;
+
+        const $table = $('#bpm-products-table table');
+        if (!$table.length) return;
+
+        if ($.fn.DataTable.isDataTable($table)) {
+            $table.DataTable().destroy();
+        }
+
+        $table.DataTable({
+            pageLength: 100,
+            lengthMenu: [[100, 200, 300, 400, 500, -1], [100, 200, 300, 400, 500, "All"]],
+            ordering: false,
+            searching: true,
+            paging: true,
+            info: true,
+            language: {
+                search: "Search products:"
+            }
+        });
+    }
+
+    $('#bpm-load-products').on('click', function () {
+
+        bpmShowOverlay('Loading products…');
+
+        $.post(BPM.ajax, {
+            action: 'bpm_load_products',
+            nonce: BPM.nonce,
+            ids: $('#product_ids').val(),
+            categories: $('#product_category').val(),
+            tags: $('#product_tag').val()
+        }, function (res) {
+
+            bpmHideOverlay();
+
+            if (!res.length) {
+                $('#bpm-products-table').html('<p>No products found.</p>');
+                bpmToggleActionButtons(false);
+                $('#bpm-products-section').hide();
+                return;
+            }
+            $('#bpm-products-section').show();
+            let html = `
+                <table class="widefat striped">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="bpm-select-all"></th>
+                            <th>Product</th>
+                            <th>Type</th>
+                            <th>Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            res.forEach(p => {
+                if (p.type === 'simple') {
+                    html += `
+                        <tr>
+                            <td><input type="checkbox" class="bpm-product"
+                                    value="${p.id}"></td>
+                            <td><strong>${p.name}</strong></td>
+                            <td>Simple</td>
+                            <td>${p.price}</td>
+                        </tr>
+                    `;
+                } else {
+                    html += `
+                        <tr class="bpm-parent">
+                            <td></td>
+                            <td><strong>${p.name}</strong></td>
+                            <td>Variable</td>
+                            <td></td>
+                        </tr>
+                    `;
+
+                    p.children.forEach(v => {
+                        html += `
+                            <tr class="bpm-variation">
+                                <td>
+                                    <input type="checkbox"
+                                        class="bpm-product"
+                                        value="${v.id}">
+                                </td>
+                                <td>↳ ${v.name}</td>
+                                <td>Variation</td>
+                                <td>${v.price}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            });
+
+            html += '</tbody></table>';
+            $('#bpm-products-table').html(html);
+            initBpmDataTable();
+            bpmToggleActionButtons(true);
+        });
+    });
+
+    $(document).on('change', '#bpm-select-all', function () {
+        $('.bpm-product').prop('checked', this.checked);
+    });
+
+    function getSelectedProducts() {
+        return $('.bpm-product:checked')
+            .map(function () { return $(this).val(); })
+            .get();
+    }
 
     $('#bpm-preview').on('click', function () {
-        if (!bpmValidateExecute()) return;
+        if (!bpmValidateSelection()) return;
+        const selected = getSelectedProducts();
+
+        if (!selected.length) {
+            bpmToast('Please select at least one product', 'error');
+            return;
+        }
         bpmShowOverlay('Updating prices, please wait…');
         $.post(BPM.ajax, {
             action: 'bpm_preview',
             nonce: BPM.nonce,
-            ids: $('#product_ids').val()
+            ids: selected.join(',')
+            // ids: $('#product_ids').val()
         }, function (res) {
             bpmHideOverlay();
             $('#bpm-result').html(`
@@ -212,14 +362,20 @@ jQuery(function ($) {
     });
 
     $('#bpm-execute').on('click', function () {
-        if (!bpmValidateExecute()) return;
-        if (!confirm('Are you sure? This will update prices.')) return;
+        if (!bpmValidateSelection()) return;
+        if (!bpmValidateExecuteFields()) return;
+
+        const selected = getSelectedProducts();
+
+        if (!confirm(
+            `You are about to update ${selected.length} products.\n\nContinue?`
+        )) return;
         bpmShowOverlay('Updating prices, please wait…');
         $('#bpm-execute').prop('disabled', true);
         $.post(BPM.ajax, {
             action: 'bpm_execute',
             nonce: BPM.nonce,
-            ids: $('#product_ids').val(),
+            ids: selected.join(','),
             operation_label: $('#operation_label').val(),
             action_type: $('#price_action').val(),
             type: $('#price_type').val(),

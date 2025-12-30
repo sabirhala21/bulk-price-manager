@@ -11,6 +11,8 @@ class BPM_Ajax
         add_action('wp_ajax_bpm_history',  [$this, 'history']);
         add_action('wp_ajax_bpm_rollback', [$this, 'rollback']);
         add_action('wp_ajax_bpm_operation_products', [$this, 'operation_products']);
+        add_action('wp_ajax_bpm_load_products', [$this, 'load_products']);
+
     }
 
     private function validate()
@@ -89,6 +91,89 @@ class BPM_Ajax
         wp_send_json($data);
     }
 
+    public function load_products() {
+        $this->validate();
+        $ids = !empty($_POST['ids'])
+            ? array_map('intval', explode(',', $_POST['ids']))
+            : [];
+        $tax_query = [];
+
+        if (!empty($_POST['categories'])) {
+            $tax_query[] = [
+                'taxonomy' => 'product_cat',
+                'field'    => 'term_id',
+                'terms'    => array_map('intval', $_POST['categories']),
+            ];
+        }
+
+        if (!empty($_POST['tags'])) {
+            $tax_query[] = [
+                'taxonomy' => 'product_tag',
+                'field'    => 'term_id',
+                'terms'    => array_map('intval', $_POST['tags']),
+            ];
+        }
+        $args = [
+            'status' => ['publish'],
+            'limit'  => -1,
+            'type'   => ['simple', 'variable'],
+        ];
+        if (!empty($ids)) {
+            $args['include'] = $ids;
+        }
+        if (!empty($tax_query)) {
+            // If both category & tag are present → AND condition
+            if (count($tax_query) > 1) {
+                $tax_query['relation'] = 'AND';
+            }
+            $args['tax_query'] = $tax_query;
+        }
+        $query = new WC_Product_Query($args);
+        $products = $query->get_products();
+
+        $data = [];
+        foreach ($products as $product) {
+
+            if ($product->is_type('variable')) {
+
+                $children = [];
+
+                foreach ($product->get_children() as $variation_id) {
+                    $variation = wc_get_product($variation_id);
+                    if (!$variation) {
+                        continue;
+                    }
+
+                    $children[] = [
+                        'id'    => $variation->get_id(),
+                        'name'  => $variation->get_name(),
+                        'price' => wc_price($variation->get_regular_price()),
+                        'type'  => 'variation',
+                    ];
+                }
+                if (!empty($children)) {
+                    $data[] = [
+                        'id'       => $product->get_id(),
+                        'name'     => $product->get_name(),
+                        'type'     => 'variable',
+                        'children' => $children,
+                    ];
+                }
+
+            } else {
+                $data[] = [
+                    'id'    => $product->get_id(),
+                    'name'  => $product->get_name(),
+                    'price' => wc_price($product->get_regular_price()),
+                    'type'  => 'simple',
+                ];
+            }
+        }
+        wp_send_json($data);
+    }
+
+
+
     public function preview()
     {
         $this->validate();
@@ -126,23 +211,25 @@ class BPM_Ajax
         if ($label === '') {
             wp_send_json_error('Operation label is required');
         }
-
+        
         if ($ids === '') {
-            wp_send_json_error('Product IDs are required');
+            wp_send_json_error('No products selected for update');
         }
 
         if ($value === '' || !is_numeric($value)) {
             wp_send_json_error('Valid price value is required');
         }
 
+        
+
         $op_id = BPM_Executor::run($_POST);
 
         wp_send_json_success([
-            'message' => 'Bulk update completed successfully',
+            'message'      => 'Bulk update completed successfully',
             'operation_id' => $op_id
         ]);
-
     }
+
 }
 
 new BPM_Ajax();
