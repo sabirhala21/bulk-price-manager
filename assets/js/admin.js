@@ -8,6 +8,7 @@ jQuery(function ($) {
     $('#product_category, #product_tag').select2({
         placeholder: 'Select options',
         allowClear: true,
+        dropdownParent: $('body'),
         width: '100%'
     });
 
@@ -169,6 +170,7 @@ jQuery(function ($) {
             html += '</tbody></table>';
 
             $('#bpm-history-content').html(html);
+            initBpmDataTable('#bpm-history-content table');
         });
     }
 
@@ -177,9 +179,13 @@ jQuery(function ($) {
         loadOperationHistory();
     });
 
-    $('.bpm-close').on('click', function () {
-        $('#bpm-history-modal').fadeOut(200);
+    $(document).on('click', '.bpm-close', function () {
+        $('#bpm-preview-modal, #bpm-history-modal').fadeOut(200);
     });
+
+    // $('.bpm-close').on('click', function () {
+    //     $('#bpm-history-modal').fadeOut(200);
+    // });
 
     function executeRollback(opId) {
         bpmShowOverlay('Rolling back prices…');
@@ -224,11 +230,11 @@ jQuery(function ($) {
         });
     });
 
-    function initBpmDataTable() {
+    function initBpmDataTable(selector) {
 
         if (!$.fn.DataTable) return;
 
-        const $table = $('#bpm-products-table table');
+        const $table = $(selector);
         if (!$table.length) return;
 
         if ($.fn.DataTable.isDataTable($table)) {
@@ -243,7 +249,30 @@ jQuery(function ($) {
             paging: true,
             info: true,
             language: {
-                search: "Search products:"
+                search: "Search:"
+            }
+        });
+    }
+
+    function initPreviewDataTable() {
+
+        if (!$.fn.DataTable) return;
+
+        if ($.fn.DataTable.isDataTable('#bpm-preview-table')) {
+            $('#bpm-preview-table').DataTable().destroy();
+        }
+
+        $('#bpm-preview-table').DataTable({
+            pageLength: 25,
+            lengthMenu: [[25, 50, 100, -1], [25, 50, 100, 'All']],
+            ordering: false,
+            searching: true,
+            lengthChange: true,
+            paging: true,
+            info: true,
+            dom: '<"top"l f>rt<"bottom"ip><"clear">',
+            language: {
+                search: 'Search preview:'
             }
         });
     }
@@ -261,14 +290,14 @@ jQuery(function ($) {
         }, function (res) {
 
             bpmHideOverlay();
-
+            $('#bpm-products-section').show();
             if (!res.length) {
                 $('#bpm-products-table').html('<p>No products found.</p>');
                 bpmToggleActionButtons(false);
-                $('#bpm-products-section').hide();
+                // $('#bpm-products-section').hide();
                 return;
             }
-            $('#bpm-products-section').show();
+            // $('#bpm-products-section').show();
             let html = `
                 <table class="widefat striped">
                     <thead>
@@ -322,7 +351,7 @@ jQuery(function ($) {
 
             html += '</tbody></table>';
             $('#bpm-products-table').html(html);
-            initBpmDataTable();
+            initBpmDataTable('#bpm-products-table table');
             bpmToggleActionButtons(true);
         });
     });
@@ -337,27 +366,73 @@ jQuery(function ($) {
             .get();
     }
 
+    function renderTrialPreviewModal(data) {
+
+        let html = `
+            <table class="widefat striped" id="bpm-preview-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Type</th>
+                        <th>Current Price</th>
+                        <th>New Price</th>
+                        <th>Difference</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        data.forEach(row => {
+            const diffClass = row.diff_raw < 0 ? 'bpm-neg' : 'bpm-pos';
+            html += `
+                <tr>
+                    <td>${row.name}</td>
+                    <td>${row.type}</td>
+                    <td>${row.old}</td>
+                    <td><strong>${row.new}</strong></td>
+                    <td class="${diffClass}">${row.diff}</td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table>';
+
+        $('#bpm-preview-content').html(html);
+        $('#bpm-preview-modal').fadeIn(200);
+        initPreviewDataTable();
+    }
+
+
     $('#bpm-preview').on('click', function () {
         if (!bpmValidateSelection()) return;
+        if (!bpmValidateExecuteFields()) return;
         const selected = getSelectedProducts();
 
         if (!selected.length) {
             bpmToast('Please select at least one product', 'error');
             return;
         }
-        bpmShowOverlay('Updating prices, please wait…');
+        bpmShowOverlay('Calculating preview…');
         $.post(BPM.ajax, {
             action: 'bpm_preview',
             nonce: BPM.nonce,
-            ids: selected.join(',')
+            ids: selected.join(','),
+            action_type: $('#price_action').val(),
+            type: $('#price_type').val(),
+            value: $('#price_value').val()
             // ids: $('#product_ids').val()
         }, function (res) {
             bpmHideOverlay();
-            $('#bpm-result').html(`
-                <p><strong>Total:</strong> ${res.total}</p>
-                <p><strong>Simple Products:</strong> ${res.simple}</p>
-                <p><strong>Variations:</strong> ${res.variation}</p>
-            `);
+            // $('#bpm-result').html(`
+            //     <p><strong>Total:</strong> ${res.total}</p>
+            //     <p><strong>Simple Products:</strong> ${res.simple}</p>
+            //     <p><strong>Variations:</strong> ${res.variation}</p>
+            // `);
+            if (!res.success) {
+                bpmToast(res.data, 'error');
+                return;
+            }
+            renderTrialPreviewModal(res.data);
         });
     });
 

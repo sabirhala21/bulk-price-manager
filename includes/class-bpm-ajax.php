@@ -174,29 +174,71 @@ class BPM_Ajax
 
 
 
+    // public function preview()
+    // {
+    //     $this->validate();
+
+    //     $ids = array_map('intval', explode(',', $_POST['ids']));
+    //     $products = BPM_Query::get_products($ids);
+
+    //     $simple = 0;
+    //     $variation = 0;
+
+    //     foreach ($products as $p) {
+    //         if ($p->is_type('variation')) {
+    //             $variation++;
+    //         } else {
+    //             $simple++;
+    //         }
+    //     }
+
+    //     wp_send_json([
+    //         'total'     => count($products),
+    //         'simple'    => $simple,
+    //         'variation' => $variation
+    //     ]);
+    // }
+
     public function preview()
     {
         $this->validate();
 
-        $ids = array_map('intval', explode(',', $_POST['ids']));
-        $products = BPM_Query::get_products($ids);
-
-        $simple = 0;
-        $variation = 0;
-
-        foreach ($products as $p) {
-            if ($p->is_type('variation')) {
-                $variation++;
-            } else {
-                $simple++;
-            }
+        if (empty($_POST['ids'])) {
+            wp_send_json_error('No products selected');
         }
 
-        wp_send_json([
-            'total'     => count($products),
-            'simple'    => $simple,
-            'variation' => $variation
-        ]);
+        $ids   = array_map('intval', explode(',', $_POST['ids']));
+        $type  = sanitize_text_field($_POST['type']);
+        $action = sanitize_text_field($_POST['action_type']);
+        $value = floatval($_POST['value']);
+
+        $products = BPM_Query::get_products($ids);
+
+        $data = [];
+
+        foreach ($products as $product) {
+
+            $old = (float) $product->get_regular_price();
+            if ($old <= 0) continue;
+
+            $new = ($type === 'percent')
+                ? $old * (1 + ($action === 'increase' ? $value : -$value) / 100)
+                : $old + ($action === 'increase' ? $value : -$value);
+
+            $new = max(0, round($new, wc_get_price_decimals()));
+            $diff = $new - $old;
+            $data[] = [
+                'id'   => $product->get_id(),
+                'name' => $product->get_name(),
+                'type' => $product->is_type('variation') ? 'Variation' : 'Simple',
+                'old'  => wc_price($old),
+                'new'  => wc_price($new),
+                'diff' => wc_price($new - $old),
+                'diff_raw' => $diff,
+            ];
+        }
+
+        wp_send_json_success($data);
     }
 
 

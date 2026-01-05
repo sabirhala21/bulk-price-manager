@@ -204,6 +204,18 @@ class BPM_Admin {
             </div>
         </div>
 
+        <!-- Trial Run Preview Modal -->
+        <div id="bpm-preview-modal" class="bpm-modal" style="display:none;">
+            <div class="bpm-modal-content bpm-modal-lg">
+                <span class="bpm-close" data-close="preview">&times;</span>
+                <h2>Trial Run – Price Preview</h2>
+
+                <div id="bpm-preview-content">
+                    <p>Loading preview…</p>
+                </div>
+            </div>
+        </div>
+
         <!-- OVERLAY -->
         <div id="bpm-overlay" style="display:none;">
             <div class="bpm-overlay-content">
