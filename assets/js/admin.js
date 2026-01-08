@@ -21,6 +21,16 @@ jQuery(function ($) {
             .trigger('change');
     });
 
+    $('#product_ids').on('input', function () {
+        this.value = this.value.replace(/[^0-9,\s]/g, '');
+    });
+
+    $('#price_value').on('input', function () {
+        this.value = this.value
+        .replace(/[^0-9.]/g, '')   // remove invalid chars
+        .replace(/(\..*)\./g, '$1');
+    });
+
     function bpmResetForm() {
         // Reset inputs
         $('#product_ids').val('');
@@ -36,11 +46,13 @@ jQuery(function ($) {
 
         // Clear category & tag (Select2-safe)
         $('#product_category, #product_tag')
+            .prop('disabled', false)
             .val(null)
             .trigger('change');
 
         // Clear product table
         $('#bpm-products-table').html('');
+        $('#bpm-products-section').hide();
 
         // (Optional) Disable execute button temporarily
         $('#bpm-execute').prop('disabled', false);
@@ -48,9 +60,16 @@ jQuery(function ($) {
     }
 
     function bpmToast(message, type = 'success') {
+        const $historyModal = $('#bpm-history-modal');
+        const isHistoryOpen = $historyModal.is(':visible');
+
+        // Decide toast container
+        const $toast = isHistoryOpen
+        ? $('#bpm-history-toast')
+        : $('#bpm-toast');
         const bg = type === 'error' ? '#e74c3c' : '#2ecc71';
 
-        $('#bpm-toast')
+        $toast
             .css('background', bg)
             .text(message)
             .fadeIn(200)
@@ -78,11 +97,48 @@ jQuery(function ($) {
         return true;
     }
 
+    function isValidProductIds(value) {
+        const cleaned = value.replace(/\s+/g, '');
+        return /^(\d+)(,\d+)*$/.test(cleaned);
+    }
+
+    function isValidPriceValue(value) {
+        if (value === '') return false;
+        const num = Number(value);
+        return (
+            !isNaN(num) &&
+            num > 0
+        );
+    }
+
+
     function bpmValidateExecuteFields() {
+        const ids = $('#product_ids').val().trim();
         const value = $('#price_value').val().trim();
         const label = $('#operation_label').val().trim();
         if (!value || isNaN(value)) {
             bpmToast('Please enter a valid price value', 'error');
+            return false;
+        }
+
+        if (!ids) {
+            bpmToast('Please enter at least one Product ID', 'error');
+            return false;
+        }
+
+        if (!isValidProductIds(ids)) {
+            bpmToast(
+                'Product IDs must contain only numbers separated by commas (e.g. 123,456)',
+                'error'
+            );
+            return false;
+        }
+
+        if (!isValidPriceValue(value)) {
+            bpmToast(
+                'Price value must be a positive number greater than 0',
+                'error'
+            );
             return false;
         }
 
@@ -207,27 +263,14 @@ jQuery(function ($) {
 
     $(document).on('click', '.rollback-btn', function () {
         const opId = $(this).data('op');
+        if (!opId) return;
+        let html = 'Rollback Bulk Price Operation\n\n';
+        html += 'This will restore product prices and related add-on option prices.\n\n';
+        html += 'This action cannot be undone.\n\n';
+        if (!confirm(html)) return;
 
-        $.post(BPM.ajax, {
-            action: 'bpm_operation_products',
-            nonce: BPM.nonce,
-            operation_id: opId
-        }, function (products) {
-
-            let html = '<ul>';
-            products.forEach(p => {
-                html += `<li>${p.name} (${p.new} → ${p.old})</li>`;
-            });
-            html += '</ul>';
-
-            if (!confirm(
-                `This will rollback ${products.length} products:\n\n` +
-                products.map(p => p.name).join('\n')
-            )) return;
-
-            // Proceed with rollback
-            executeRollback(opId);
-        });
+        // Proceed with rollback
+        executeRollback(opId);
     });
 
     function initBpmDataTable(selector) {

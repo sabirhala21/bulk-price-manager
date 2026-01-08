@@ -137,11 +137,13 @@
     width: 20% !important;
 }
 
-#bpm-toast{
+#bpm-toast, #bpm-history-toast{
     display: none;
     padding: 12px 18px;
     border-radius: 4px;
     margin-bottom: 16px;
+    color: white;
+    font-weight: 700;
 }
 
 .bpm-modal-lg {

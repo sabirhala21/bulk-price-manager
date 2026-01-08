@@ -140,7 +140,7 @@ class BPM_Admin {
 
                     <div class="bpm-field">
                         <label>Value</label>
-                        <input type="number" step="0.01" id="price_value"
+                        <input type="text" id="price_value"
                             placeholder="e.g. 10 or 5.5">
                     </div>
 
@@ -196,6 +196,7 @@ class BPM_Admin {
         <!-- HISTORY MODAL -->
         <div id="bpm-history-modal" class="bpm-modal" style="display:none;">
             <div class="bpm-modal-content">
+                <div id="bpm-history-toast"></div>
                 <span class="bpm-close">&times;</span>
                 <h2>Bulk Price Operations History</h2>
                 <div id="bpm-history-content">
