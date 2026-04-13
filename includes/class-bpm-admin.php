@@ -59,7 +59,7 @@ class BPM_Admin {
 
         wp_enqueue_script(
             'bpm-admin',
-            BPM_URL . 'assets/js/admin.js',
+            BPM_URL . 'assets/js/admin.js?v=hk32j4h',
             ['jquery', 'select2', 'datatables-core'],
             '1.0',
             true

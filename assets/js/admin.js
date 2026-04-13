@@ -113,7 +113,7 @@ jQuery(function ($) {
 
 
     function bpmValidateExecuteFields() {
-        const ids = $('#product_ids').val().trim();
+        // const ids = $('#product_ids').val().trim();
         const value = $('#price_value').val().trim();
         const label = $('#operation_label').val().trim();
         if (!value || isNaN(value)) {
@@ -121,18 +121,18 @@ jQuery(function ($) {
             return false;
         }
 
-        if (!ids) {
-            bpmToast('Please enter at least one Product ID', 'error');
-            return false;
-        }
+        // if (!ids) {
+        //     bpmToast('Please enter at least one Product ID', 'error');
+        //     return false;
+        // }
 
-        if (!isValidProductIds(ids)) {
-            bpmToast(
-                'Product IDs must contain only numbers separated by commas (e.g. 123,456)',
-                'error'
-            );
-            return false;
-        }
+        // if (!isValidProductIds(ids)) {
+        //     bpmToast(
+        //         'Product IDs must contain only numbers separated by commas (e.g. 123,456)',
+        //         'error'
+        //     );
+        //     return false;
+        // }
 
         if (!isValidPriceValue(value)) {
             bpmToast(
