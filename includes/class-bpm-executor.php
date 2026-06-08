@@ -8,9 +8,9 @@ class BPM_Executor {
 
         $ids = array_map('intval', explode(',', $data['ids']));
         // $action = $data['action'];
-        $action = $data['action_type'];
-        $type = $data['type'];
-        $value = floatval($data['value']);
+        $action = isset($data['action_type']) ? $data['action_type'] : '';
+        $type   = isset($data['type']) ? $data['type'] : '';
+        $value  = isset($data['value']) ? floatval($data['value']) : 0;
         $operation_id = uniqid('bpm_', true);
         $label = sanitize_text_field($data['operation_label']);
         $products = BPM_Query::get_products($ids);

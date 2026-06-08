@@ -17,8 +17,15 @@ class BPM_Ajax
 
     private function validate()
     {
-        check_ajax_referer('bpm_nonce', 'nonce');
-        if (!current_user_can('manage_woocommerce')) wp_die();
+        // check_ajax_referer('bpm_nonce', 'nonce');
+        // if (!current_user_can('manage_woocommerce')) wp_die();
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'bpm_nonce')) {
+            wp_send_json_error(['message' => 'Invalid request']);
+        }
+
+        if (!current_user_can('manage_woocommerce')) {
+            wp_send_json_error(['message' => 'Permission denied']);
+        }
     }
 
     public function history() {
@@ -39,7 +46,8 @@ class BPM_Ajax
             ORDER BY performed_at DESC
         ");
 
-        wp_send_json($rows);
+        // wp_send_json($rows);
+        wp_send_json_success($rows);
     }
 
     public function rollback() {
@@ -56,7 +64,10 @@ class BPM_Ajax
 
             wp_send_json_success('Prices rolled back successfully');
         } catch (Exception $e) {
-            wp_send_json_error('Rollback failed: ' . $e->getMessage());
+            // wp_send_json_error('Rollback failed: ' . $e->getMessage());
+            wp_send_json_error([
+                'message' => 'Rollback failed: ' . $e->getMessage()
+            ]);
         }
     }
 
@@ -64,7 +75,8 @@ class BPM_Ajax
         $this->validate();
         global $wpdb;
 
-        $op = sanitize_text_field($_POST['operation_id']);
+        // $op = sanitize_text_field($_POST['operation_id']);
+        $op = isset($_POST['operation_id']) ? sanitize_text_field($_POST['operation_id']) : '';
         $table = $wpdb->prefix . 'bpm_price_history';
 
         $rows = $wpdb->get_results(
@@ -82,13 +94,14 @@ class BPM_Ajax
             if (!$product) continue;
 
             $data[] = [
-                'name' => $product->get_name(),
+                // 'name' => $product->get_name(),
+                'name' => esc_html($product->get_name()),
                 'old'  => wc_price($r->old_price),
                 'new'  => wc_price($r->new_price)
             ];
         }
 
-        wp_send_json($data);
+        wp_send_json_success($data);
     }
 
     public function load_products() {
@@ -146,7 +159,8 @@ class BPM_Ajax
 
                     $children[] = [
                         'id'    => $variation->get_id(),
-                        'name'  => $variation->get_name(),
+                        // 'name'  => $variation->get_name(),
+                        'name' => esc_html($variation->get_name()),
                         'price' => wc_price($variation->get_regular_price()),
                         'type'  => 'variation',
                     ];
@@ -169,7 +183,7 @@ class BPM_Ajax
                 ];
             }
         }
-        wp_send_json($data);
+        wp_send_json_success($data);
     }
 
 
@@ -204,13 +218,18 @@ class BPM_Ajax
         $this->validate();
 
         if (empty($_POST['ids'])) {
-            wp_send_json_error('No products selected');
+            wp_send_json_error([
+                'message' => 'No products selected'
+            ]);
         }
 
         $ids   = array_map('intval', explode(',', $_POST['ids']));
-        $type  = sanitize_text_field($_POST['type']);
-        $action = sanitize_text_field($_POST['action_type']);
-        $value = floatval($_POST['value']);
+        // $type  = sanitize_text_field($_POST['type']);
+        // $action = sanitize_text_field($_POST['action_type']);
+        // $value = floatval($_POST['value']);
+        $type   = isset($_POST['type']) ? sanitize_text_field($_POST['type']) : '';
+        $action = isset($_POST['action_type']) ? sanitize_text_field($_POST['action_type']) : '';
+        $value  = isset($_POST['value']) ? floatval($_POST['value']) : 0;
 
         $products = BPM_Query::get_products($ids);
 
@@ -229,7 +248,8 @@ class BPM_Ajax
             $diff = $new - $old;
             $data[] = [
                 'id'   => $product->get_id(),
-                'name' => $product->get_name(),
+                // 'name' => $product->get_name(),
+                'name' => esc_html($product->get_name()),
                 'type' => $product->is_type('variation') ? 'Variation' : 'Simple',
                 'old'  => wc_price($old),
                 'new'  => wc_price($new),
@@ -238,38 +258,100 @@ class BPM_Ajax
             ];
         }
 
+        if (empty($data)) {
+            wp_send_json_error([
+                'message' => 'No products with valid prices found'
+            ]);
+        }
+
         wp_send_json_success($data);
     }
 
+
+    // public function execute()
+    // {
+    //     $this->validate();
+
+    //     // $ids   = isset($_POST['ids']) ? trim($_POST['ids']) : '';
+    //     // $value = isset($_POST['value']) ? trim($_POST['value']) : '';
+    //     // $label = isset($_POST['operation_label']) ? trim($_POST['operation_label']) : '';
+
+    //     $ids   = isset($_POST['ids']) ? sanitize_text_field($_POST['ids']) : '';
+    //     $value = isset($_POST['value']) ? floatval($_POST['value']) : 0;
+    //     $label = isset($_POST['operation_label']) ? sanitize_text_field($_POST['operation_label']) : '';
+
+    //     if ($label === '') {
+    //         wp_send_json_error('Operation label is required');
+    //     }
+        
+    //     if ($ids === '') {
+    //         wp_send_json_error('No products selected for update');
+    //     }
+
+    //     if ($value === '' || !is_numeric($value)) {
+    //         wp_send_json_error('Valid price value is required');
+    //     }
+
+        
+
+    //     $op_id = BPM_Executor::run($_POST);
+
+    //     wp_send_json_success([
+    //         'message'      => 'Bulk update completed successfully',
+    //         'operation_id' => $op_id
+    //     ]);
+    // }
 
     public function execute()
     {
         $this->validate();
 
-        $ids   = isset($_POST['ids']) ? trim($_POST['ids']) : '';
-        $value = isset($_POST['value']) ? trim($_POST['value']) : '';
-        $label = isset($_POST['operation_label']) ? trim($_POST['operation_label']) : '';
+        $ids   = isset($_POST['ids']) ? sanitize_text_field($_POST['ids']) : '';
+        $value = isset($_POST['value']) ? floatval($_POST['value']) : 0;
+        $label = isset($_POST['operation_label']) ? sanitize_text_field($_POST['operation_label']) : '';
+
+        $type   = isset($_POST['type']) ? sanitize_text_field($_POST['type']) : '';
+        $action = isset($_POST['action_type']) ? sanitize_text_field($_POST['action_type']) : '';
 
         if ($label === '') {
-            wp_send_json_error('Operation label is required');
+            wp_send_json_error([
+                'message' => 'Operation label is required'
+            ]);
         }
-        
+
         if ($ids === '') {
-            wp_send_json_error('No products selected for update');
+            wp_send_json_error([
+                'message' => 'No products selected for update'
+            ]);
         }
 
-        if ($value === '' || !is_numeric($value)) {
-            wp_send_json_error('Valid price value is required');
+        if (!is_numeric($value) || $value <= 0) {
+            wp_send_json_error([
+                'message' => 'Valid price value is required'
+            ]);
         }
 
-        
+        $data = [
+            'ids'             => $ids,
+            'value'           => $value,
+            'operation_label' => $label,
+            'type'            => $type,
+            'action_type'     => $action,
+        ];
 
-        $op_id = BPM_Executor::run($_POST);
+        try {
+            $op_id = BPM_Executor::run($data);
 
-        wp_send_json_success([
-            'message'      => 'Bulk update completed successfully',
-            'operation_id' => $op_id
-        ]);
+            wp_send_json_success([
+                'message'      => 'Bulk update completed successfully',
+                'operation_id' => $op_id
+            ]);
+
+        } catch (Exception $e) {
+            wp_send_json_error([
+                'message' => 'Execution failed: ' . $e->getMessage()
+            ]);
+        }
     }
 
 }

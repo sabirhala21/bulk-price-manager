@@ -142,8 +142,11 @@
     padding: 12px 18px;
     border-radius: 4px;
     margin-bottom: 16px;
-    color: white;
     font-weight: 700;
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, .04);
+    border-left-width: 8px;
 }
 
 .bpm-modal-lg {
@@ -182,4 +185,75 @@
     font-size: 20px;
 }
 
+#bpm-compatibility {
+    max-width: 700px;
+    margin-top: 20px;
+}
 
+.bpm-check {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    background: #fff;
+    transition: all 0.3s ease;
+}
+
+.bpm-left {
+    display: flex;
+    flex-direction: column;
+}
+
+.bpm-value {
+    font-size: 12px;
+    color: #777;
+}
+
+.bpm-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Loader */
+.bpm-loader {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #ddd;
+    border-top: 2px solid #007cba;
+    border-radius: 50%;
+    animation: bpm-spin 0.8s linear infinite;
+}
+
+@keyframes bpm-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Result icons */
+.bpm-success {
+    color: #28a745;
+    font-size: 18px;
+}
+
+.bpm-fail {
+    color: #e74c3c;
+    font-size: 18px;
+}
+
+/* Highlight */
+.bpm-check.done {
+    border-color: #d4edda;
+    background: #f6fff8;
+}
+
+.bpm-result {
+    display: inline-block;
+    min-width: 20px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+}

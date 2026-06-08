@@ -67,10 +67,10 @@ jQuery(function ($) {
         const $toast = isHistoryOpen
         ? $('#bpm-history-toast')
         : $('#bpm-toast');
-        const bg = type === 'error' ? '#e74c3c' : '#2ecc71';
+        const borderLeftColor = type === 'error' ? '#d63638' : '#00a32a';
 
         $toast
-            .css('background', bg)
+            .css('border-left-color', borderLeftColor)
             .text(message)
             .fadeIn(200)
             .delay(3000)
@@ -183,7 +183,7 @@ jQuery(function ($) {
             nonce: BPM.nonce
         }, function (res) {
 
-            if (!res.length) {
+            if (!res.success || !res.data.length) {
                 $('#bpm-history-content').html('<p>No operations found.</p>');
                 return;
             }
@@ -194,14 +194,13 @@ jQuery(function ($) {
                         <tr>
                             <th>Label</th>
                             <th>Date</th>
-                            <th>Items</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
             `;
-
-            res.forEach(r => {
+            const rows = res.data;
+            rows.forEach(r => {
                 const disabled = r.rolled_back == 1 ? 'disabled' : '';
                 const badge = r.rolled_back == 1
                     ? '<span style="color:#e74c3c;font-weight:bold;">Rolled Back</span>'
@@ -211,7 +210,6 @@ jQuery(function ($) {
                     <tr style="${r.rolled_back == 1 ? 'opacity:0.6;' : ''}">
                         <td><strong>${r.operation_label}</strong><br>${badge}</td>
                         <td>${r.performed_at}</td>
-                        <td>${r.total_items}</td>
                         <td>
                             <button class="button rollback-btn"
                                     data-op="${r.operation_id}"
@@ -255,7 +253,8 @@ jQuery(function ($) {
                 bpmToast(res.data);
                 loadOperationHistory();
             } else {
-                bpmToast(res.data, 'error');
+                const msg = res.data?.message || 'Rollback failed';
+                bpmToast(msg, 'error');
             }
         });
     }
@@ -334,7 +333,7 @@ jQuery(function ($) {
 
             bpmHideOverlay();
             $('#bpm-products-section').show();
-            if (!res.length) {
+            if (!res.success || !res.data.length) {
                 $('#bpm-products-table').html('<p>No products found.</p>');
                 bpmToggleActionButtons(false);
                 // $('#bpm-products-section').hide();
@@ -353,8 +352,8 @@ jQuery(function ($) {
                     </thead>
                     <tbody>
             `;
-
-            res.forEach(p => {
+            const products = res.data;
+            products.forEach(p => {
                 if (p.type === 'simple') {
                     html += `
                         <tr>
@@ -472,7 +471,8 @@ jQuery(function ($) {
             //     <p><strong>Variations:</strong> ${res.variation}</p>
             // `);
             if (!res.success) {
-                bpmToast(res.data, 'error');
+               const msg = res.data?.message || 'Preview failed';
+                bpmToast(msg, 'error');
                 return;
             }
             renderTrialPreviewModal(res.data);
@@ -512,10 +512,50 @@ jQuery(function ($) {
                     bpmResetForm();
                 }, 3000);
             } else {
-                bpmToast(res.data, 'error');
+                const msg = res.data?.message || 'Execution failed';
+                bpmToast(msg, 'error');
                 $('#bpm-execute').prop('disabled', false);
             }
         });
     });
+
+    function runCompatibilityCheck() {
+
+        const items = document.querySelectorAll('.bpm-check');
+
+        items.forEach((item, index) => {
+
+            setTimeout(() => {
+
+                const status = item.dataset.status;
+                const loader = item.querySelector('.bpm-loader');
+                const result = item.querySelector('.bpm-result');
+
+                if (!loader || !result) {
+                    console.log("Missing elements", item);
+                    return;
+                }
+
+                loader.style.opacity = '0';
+                loader.style.visibility = 'hidden';
+
+                if (status === "1") {
+                    result.innerHTML = "✔";
+                    result.classList.add('bpm-success');
+                    item.classList.add('done');
+                } else {
+                    result.innerHTML = "✖";
+                    result.classList.add('bpm-fail');
+                }
+
+            }, index * 800);
+
+        });
+    }
+
+    if ($('#bpm-compatibility').length) {
+        console.log("Compatibility Check Running");
+        runCompatibilityCheck();
+    }
 
 });

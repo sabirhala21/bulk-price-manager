@@ -1,14 +1,17 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-class BPM_Admin {
+class BPM_Admin
+{
 
-    public function __construct() {
+    public function __construct()
+    {
         add_action('admin_menu', [$this, 'menu']);
         add_action('admin_enqueue_scripts', [$this, 'assets']);
     }
 
-    public function menu() {
+    public function menu()
+    {
         add_menu_page(
             'Bulk Price Manager',
             'Bulk Price Manager',
@@ -18,12 +21,34 @@ class BPM_Admin {
             'dashicons-database',
             56
         );
+
+        add_submenu_page(
+            'bulk-price-manager',
+            'Compatibility Check',
+            'Compatibility Check',
+            'manage_woocommerce',
+            'bpm-compatibility',
+            [$this, 'compatibility_page']
+        );
     }
 
-    public function assets($hook) {
-        if ($hook !== 'toplevel_page_bulk-price-manager') return;
+    public function assets($hook)
+    {
+//         echo '<pre>' . $hook . '</pre>';
+// exit;
+//         // if ($hook !== 'toplevel_page_bulk-price-manager') return;
+//         if (
+//             $hook !== 'toplevel_page_bulk-price-manager' &&
+//             $hook !== 'bulk-price-manager_page_bpm-compatibility'
+//         ) {
+//             return;
+//         }
 
-        wp_enqueue_script('jquery');
+if (strpos($hook, 'bulk-price-manager') === false) {
+    return;
+}
+
+        // wp_enqueue_script('jquery');
         wp_enqueue_style('select2');
         wp_enqueue_script('select2');
 
@@ -59,9 +84,9 @@ class BPM_Admin {
 
         wp_enqueue_script(
             'bpm-admin',
-            BPM_URL . 'assets/js/admin.js?v=hk32j4h',
+            BPM_URL . 'assets/js/admin.js',
             ['jquery', 'select2', 'datatables-core'],
-            '1.0',
+            time(),
             true
         );
 
@@ -69,7 +94,7 @@ class BPM_Admin {
             'bpm-admin',
             BPM_URL . 'assets/css/admin.css',
             ['datatables-bootstrap'],
-            '1.0'
+            '1.0.0'
         );
 
         wp_localize_script('bpm-admin', 'BPM', [
@@ -77,10 +102,10 @@ class BPM_Admin {
             'nonce' => wp_create_nonce('bpm_nonce')
         ]);
     }
-    
 
-    public function page() {
-        ?>
+    public function page()
+    {
+?>
         <div class="wrap bpm-wrap">
 
             <h1 class="bpm-title">Bulk Price Manager</h1>
@@ -169,7 +194,7 @@ class BPM_Admin {
             </div>
 
             <!-- PRODUCTS TABLE -->
-            <div class="bpm-card"  id="bpm-products-section" style="display:none;">
+            <div class="bpm-card" id="bpm-products-section" style="display:none;">
                 <h2 class="bpm-card-title">Products to be Updated</h2>
                 <div id="bpm-products-table"></div>
             </div>
@@ -198,7 +223,7 @@ class BPM_Admin {
             <div class="bpm-modal-content">
                 <div id="bpm-history-toast"></div>
                 <span class="bpm-close">&times;</span>
-                <h2>Bulk Price Operations History</h2>
+                <h5>Bulk Price Operations History</h5>
                 <div id="bpm-history-content">
                     <p>Loading history…</p>
                 </div>
@@ -224,8 +249,76 @@ class BPM_Admin {
                 <p id="bpm-overlay-text">Processing, please wait…</p>
             </div>
         </div>
-        <?php
+<?php
     }
+
+    public function compatibility_page() {
+
+        global $wp_version;
+
+        $checks = [];
+
+        // PHP
+        $checks[] = [
+            'label' => 'PHP Version (>= 7.4)',
+            'value' => PHP_VERSION,
+            'status' => version_compare(PHP_VERSION, '7.4', '>=')
+        ];
+
+        // WordPress
+        $checks[] = [
+            'label' => 'WordPress Version (>= 5.8)',
+            'value' => $wp_version,
+            'status' => version_compare($wp_version, '5.8', '>=')
+        ];
+
+        // WooCommerce
+        $checks[] = [
+            'label' => 'WooCommerce',
+            'value' => class_exists('WooCommerce') ? 'Active' : 'Not Active',
+            'status' => class_exists('WooCommerce')
+        ];
+
+        // YITH
+        $yith_status = false;
+        $yith_value = 'Not Installed';
+
+        if (defined('YITH_WAPO_VERSION')) {
+            $yith_value = YITH_WAPO_VERSION;
+
+            if (version_compare(YITH_WAPO_VERSION, '4.17.0', '>=')) {
+                $yith_status = true;
+            }
+        }
+
+        $checks[] = [
+            'label' => 'YITH Add-ons (>= 4.17.0)',
+            'value' => $yith_value,
+            'status' => $yith_status
+        ];
+
+        echo '<div class="wrap"><h1>Compatibility Check</h1>';
+        echo '<div id="bpm-compatibility">';
+
+        foreach ($checks as $index => $check) {
+            echo '<div class="bpm-check" data-status="' . ($check['status'] ? '1' : '0') . '" data-index="'.$index.'">';
+            
+            echo '<div class="bpm-left">';
+            echo '<strong>' . esc_html($check['label']) . '</strong>';
+            echo '<span class="bpm-value">' . esc_html($check['value']) . '</span>';
+            echo '</div>';
+
+            echo '<div class="bpm-right">';
+            echo '<span class="bpm-loader"></span>';
+            echo '<span class="bpm-result"></span>';
+            echo '</div>';
+
+            echo '</div>';
+        }
+
+        echo '</div></div>';
+    }
+
 }
 
 new BPM_Admin();
